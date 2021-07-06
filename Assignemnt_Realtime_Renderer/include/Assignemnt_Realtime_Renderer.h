@@ -75,6 +75,8 @@ protected:
 
 	// struct that defines how all the lights work
 	typedef struct Light {
+		bool			m_lightActive;
+
 		glm::vec4		m_lightPos; // position of each light
 
 		glm::vec3		m_lightAmbientColour; // ambient colour of each light

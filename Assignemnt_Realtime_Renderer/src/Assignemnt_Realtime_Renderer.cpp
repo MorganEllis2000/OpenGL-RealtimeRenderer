@@ -362,6 +362,7 @@ bool Assignemnt_Realtime_Renderer::onCreate()
 
 #pragma region Setting up lights
 	// set up one light to act as the sun
+	m_lights[0].m_lightActive = true;
 	m_lights[0].m_lightPos = glm::vec4(20.f, 15.f, 0.f, 1.f); // set the starting pos of the light
 	m_lights[0].m_lightAmbientColour = glm::vec3(0.3, 0.3f, 0.3f); // set the starting ambient colour of the light
 	m_lights[0].m_lightDiffuseColour = glm::vec3(1.f, 0.85f, 0.05f); // set the starting diffuse colour of the light
@@ -371,6 +372,8 @@ bool Assignemnt_Realtime_Renderer::onCreate()
 
 	for (int i = 1; i < NUMBER_OF_LIGHTS; ++i)
 	{
+		m_lights[i].m_lightActive = true;
+
 		// set up 4 point lights
 		if (i < 5)
 		{
@@ -432,7 +435,10 @@ void Assignemnt_Realtime_Renderer::Update(float a_deltaTime)
 	m_lights[0].m_lightPos.z = temp.x * s + temp.z * c;
 	m_lights[0].m_lightPos.w = 0;
 	m_lights[0].m_lightPos = glm::normalize(m_lights[0].m_lightPos) * 25.f;
-	Gizmos::addBox(m_lights[0].m_lightPos.xyz, glm::vec3(0.2f, 0.2f, 0.2f), true, glm::vec4(m_lights[0].m_lightDiffuseColour, 1.f));
+	if (m_lights[0].m_lightActive == true)
+	{
+		Gizmos::addBox(m_lights[0].m_lightPos.xyz, glm::vec3(0.2f, 0.2f, 0.2f), true, glm::vec4(m_lights[0].m_lightDiffuseColour, 1.f));
+	}
 
 	glm::vec4 vertexPos = m_tessVertices[0].position;
 	m_tessVertices[0].position.y = 10.f;
@@ -450,7 +456,10 @@ void Assignemnt_Realtime_Renderer::Update(float a_deltaTime)
 
 	for (int i = 1; i < NUMBER_OF_LIGHTS; ++i)
 	{
-		Gizmos::addBox(m_lights[i].m_lightPos.xyz, glm::vec3(0.2f, 0.2f, 0.2f), true, glm::vec4(m_lights[i].m_lightDiffuseColour, 1.f));
+		if (m_lights[i].m_lightActive == true)
+		{
+			Gizmos::addBox(m_lights[i].m_lightPos.xyz, glm::vec3(0.2f, 0.2f, 0.2f), true, glm::vec4(m_lights[i].m_lightDiffuseColour, 1.f));
+		}
 	}
 
 	// for each mesh in the model file update child nodes
@@ -486,12 +495,20 @@ void Assignemnt_Realtime_Renderer::Update(float a_deltaTime)
 
 		static int sceneLight = 0;
 		ImGui::SliderInt("Scene Light", &sceneLight, 0, NUMBER_OF_LIGHTS - 1);
+		ImGui::Checkbox("Light Active", &m_lights[sceneLight].m_lightActive);
 
 		// Codeblock to seperate ImGui window from rest of code
 		ImGui::ColorEdit3("Light Ambient Colour", glm::value_ptr(m_lights[sceneLight].m_lightAmbientColour)); // allows the user to change the lights ambient value
 		ImGui::ColorEdit3("Light Diffuse Colour", glm::value_ptr(m_lights[sceneLight].m_lightDiffuseColour)); // allows the user to change the lights diffuse value
 		ImGui::ColorEdit3("Light Specular Colour", glm::value_ptr(m_lights[sceneLight].m_lightSpecularColour)); // allows the user to change the lights specular value
 		ImGui::DragFloat("Specular Power", &m_lights[sceneLight].m_lightSpecularPower, 1.f, 1.f, 128.f, "%.0f", 1.f); // allows the user to change the lights specular power value
+
+		if (m_lights[sceneLight].m_lightActive == false)
+		{
+			m_lights[sceneLight].m_lightAmbientColour = glm::vec3(0, 0, 0);
+			m_lights[sceneLight].m_lightDiffuseColour = glm::vec3(0, 0, 0);
+			m_lights[sceneLight].m_lightSpecularColour = glm::vec3(0, 0, 0);
+		}
 
 		// allows us to change the attenuation distance as long as it is not our directional light and the positions of the lights
 		if (sceneLight > 0)
@@ -652,7 +669,6 @@ void Assignemnt_Realtime_Renderer::Draw()
 
 	for (int i = 0; i < NUMBER_OF_LIGHTS; ++i)
 	{
-
 		char strBuff[32];
 		memset(strBuff, 0, 32);
 		sprintf(strBuff, "LightPosition[%i]", i);
@@ -679,7 +695,6 @@ void Assignemnt_Realtime_Renderer::Draw()
 		sprintf(strBuff, "LightSpecular[%i]", i);
 		int lightSpecularUniformLoc = glGetUniformLocation(m_tessProgramID, strBuff);
 		glUniform4fv(lightSpecularUniformLoc, 1, glm::value_ptr(glm::vec4(m_lights[i].m_lightAmbientColour, m_lights[i].m_lightSpecularPower)));
-
 	}
 
 	glEnable(GL_BLEND);
@@ -732,7 +747,6 @@ void Assignemnt_Realtime_Renderer::DrawScene(unsigned int a_programID, unsigned 
 
 	for (int i = 0; i < NUMBER_OF_LIGHTS; ++i)
 	{
-
 		char strBuff[32];
 		memset(strBuff, 0, 32);
 		sprintf(strBuff, "LightPosition[%i]", i);
@@ -760,7 +774,7 @@ void Assignemnt_Realtime_Renderer::DrawScene(unsigned int a_programID, unsigned 
 		int lightAttenuationUniformLoc = glGetUniformLocation(a_programID, strBuff);
 		glUniform1f(lightAttenuationUniformLoc, m_lights[i].m_attenuationDistance);
 
-		if (i > 1)
+		if (i > 4)
 		{
 			memset(strBuff, 0, 32);
 			sprintf(strBuff, "Cutoff[%i]", i);
@@ -804,7 +818,7 @@ void Assignemnt_Realtime_Renderer::DrawScene(unsigned int a_programID, unsigned 
 			Application_Log* log = Application_Log::Create();
 			if (log != nullptr)
 			{
-				log->addLog(LOG_LEVEL::LOG_WARNING, "Warning: Uniform location: ModelLocation not found in model!\n");
+				//log->addLog(LOG_LEVEL::LOG_WARNING, "Warning: Uniform location: ModelLocation not found in model!\n");
 			}
 		}
 
@@ -901,7 +915,7 @@ bool Assignemnt_Realtime_Renderer::LoadImageFromFile(std::string a_filePath, uns
 		Application_Log* log = Application_Log::Get();
 		if (log != nullptr)
 		{
-			log->addLog(LOG_LEVEL::LOG_ERROR, "Failed to load texture : %s", a_filePath.c_str());
+			//log->addLog(LOG_LEVEL::LOG_ERROR, "Failed to load texture : %s", a_filePath.c_str());
 		}
 	}
 	return false;
